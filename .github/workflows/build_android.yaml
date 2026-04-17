@@ -67,4 +67,3 @@ jobs:
         with:
           name: AI-Edge-Gallery-API-Edition
           path: Android/app/build/outputs/apk/release/*.apk
-          path: Android/app/build/outputs/apk/release/*.apk
