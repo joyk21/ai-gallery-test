@@ -23,7 +23,7 @@ jobs:
 
       - name: Inject Chinese Resources & Fix Configs
         run: |
-          # 1. 注入中文资源
+          # 1. 注入中文资源 (保持原始包名路径)
           mkdir -p Android/src/app/src/main/res/values-zh-rCN/
           cat <<'EOF' > Android/src/app/src/main/res/values-zh-rCN/strings.xml
           <?xml version="1.0" encoding="utf-8"?>
@@ -43,15 +43,9 @@ jobs:
           </resources>
           EOF
 
-          # 2. 彻底修复 Manifest 包名冲突
-          find . -name "AndroidManifest.xml" -exec sed -i 's/package="com.google.ai.edge.gallery"//g' {} +
-
-          # 3. 修改 Gradle 中的包名实现共存
-          find . -name "build.gradle*" -exec sed -i 's/com.google.ai.edge.gallery/com.google.ai.edge.gallery.api/g' {} +
-
-          # 4. 关键修复：先删除可能存在的旧文件，防止 Entry name collided 报错
+          # 2. 修复 Google 服务配置文件 (直接覆盖，不改包名)
           rm -f Android/src/app/google-services.json
-          echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery.api"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
+          echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -64,8 +58,8 @@ jobs:
         run: |
           cd Android/src
           chmod +x gradlew
-          # 使用 -x test 跳过测试，进一步减少潜在冲突
-          ./gradlew assembleRelease --no-daemon -x test
+          # 清理并构建，彻底避开重复类问题
+          ./gradlew clean assembleRelease --no-daemon -x test
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1
