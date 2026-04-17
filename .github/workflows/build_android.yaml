@@ -1,4 +1,4 @@
-name: Build AI Gallery - API Server Edition
+name: Build AI Gallery - API Server Edition (Force Mode)
 
 on:
   workflow_dispatch:
@@ -6,7 +6,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 增加权限设置，确保 Actions 有权操作 Git 历史
     permissions:
       contents: write
     
@@ -16,28 +15,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Inject Edge Server Code (PR #647)
+      - name: Force Pull Edge Server Code (PR #647)
         run: |
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
-          # 使用 remote 方式拉取，增加成功率
+          # 直接强制重置本地分支为官方 PR 的内容，彻底跳过 Merge 冲突
           git remote add upstream https://github.com/google-ai-edge/gallery.git
           git fetch upstream pull/647/head:edge-server-branch
-          # 使用 -X theirs 自动解决所有合并冲突，优先保留 API 功能代码
-          git merge edge-server-branch --allow-unrelated-histories -X theirs -m "Merge API Server support"
+          git reset --hard edge-server-branch
 
       - name: Co-existence & Translation
         run: |
-          # 1. 修改包名实现共存 (注意官方文件可能是 build.gradle.kts)
+          # 1. 动态查找并修改包名
           find . -name "build.gradle*" -exec sed -i 's/com.google.ai.edge.gallery/com.google.ai.edge.gallery.api/g' {} +
           
-          # 2. 自动化汉化 (强制修改 strings.xml)
+          # 2. 汉化 strings.xml (适配新路径)
           STRINGS_PATH="Android/app/src/main/res/values/strings.xml"
           if [ -f "$STRINGS_PATH" ]; then
             sed -i 's/>Google AI Edge Gallery</>AI Edge API版</g' "$STRINGS_PATH"
             sed -i 's/>Settings</>设置</g' "$STRINGS_PATH"
             sed -i 's/>Benchmark</>性能评测</g' "$STRINGS_PATH"
             sed -i 's/>Edge Server</>API 服务器</g' "$STRINGS_PATH"
+            sed -i 's/>Server running</>服务器运行中</g' "$STRINGS_PATH"
           fi
 
       - name: Set up JDK 17
@@ -47,12 +46,10 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x Android/gradlew
-
       - name: Build with Gradle
         run: |
           cd Android
+          chmod +x gradlew
           ./gradlew assembleRelease
 
       - name: Sign APK
@@ -69,4 +66,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AI-Edge-Gallery-API-Edition
+          path: Android/app/build/outputs/apk/release/*.apk
           path: Android/app/build/outputs/apk/release/*.apk
