@@ -23,10 +23,10 @@ jobs:
 
       - name: Inject Chinese Resources
         run: |
-          # 1. [span_3](start_span)在正确的路径下创建中文资源文件夹[span_3](end_span)
+          # 1. 在正确的路径下创建中文资源文件夹
           mkdir -p Android/src/app/src/main/res/values-zh-rCN/
           
-          # 2. [span_4](start_span)[span_5](start_span)写入汉化内容[span_4](end_span)[span_5](end_span)
+          # 2. 写入汉化内容
           cat <<'EOF' > Android/src/app/src/main/res/values-zh-rCN/strings.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -45,23 +45,22 @@ jobs:
           </resources>
           EOF
 
-          # 3. [span_6](start_span)解决 AndroidManifest 包名冲突 (针对报错进行的修复)[span_6](end_span)
-          # 删除 Manifest 中硬编码的 package 属性，改由 Gradle 统一管理命名空间
+          # 3. 彻底修复 Manifest 包名冲突 (针对之前的报错进行修复)
           find . -name "AndroidManifest.xml" -exec sed -i 's/package="com.google.ai.edge.gallery"//g' {} +
 
-          # 4. [span_7](start_span)修改 Gradle 中的包名实现共存[span_7](end_span)
+          # 4. 修改 Gradle 中的包名实现共存
           find . -name "build.gradle*" -exec sed -i 's/com.google.ai.edge.gallery/com.google.ai.edge.gallery.api/g' {} +
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: '21'   # 此处已从 17 升级到 21，解决 class version 65.0 报错
           distribution: 'temurin'
           cache: gradle
 
       - name: Build and Sign APK
         run: |
-          # [span_8](start_span)[span_9](start_span)切换到包含 gradlew 的正确目录[span_8](end_span)[span_9](end_span)
+          # 切换到包含 gradlew 的正确目录
           cd Android/src
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
