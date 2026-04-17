@@ -1,29 +1,71 @@
-name: Build Android APK
+name: Build AI Gallery - API Server Edition
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'Android/**'
-  pull_request:
-    branches: [ "main" ]
-    paths:
-      - 'Android/**'
+  workflow_dispatch: # 手动点击 Run Workflow 触发
 
 jobs:
-  build_apk:
-    name: Build Android APK
+  build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./Android/src
     steps:
-      - name: Checkout the source code
-        uses: actions/checkout@v3
-      - uses: actions/setup-java@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
+          fetch-depth: 0 # 必须拉取完整历史以支持合并
+
+      - name: Merge Edge Server PR (#647)
+        run: |
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          # 从官方仓库拉取包含 API Server 功能的 PR 分支
+          git remote add upstream https://github.com/google-ai-edge/gallery.git
+          git fetch upstream pull/647/head:edge-server-branch
+          # 自动合并到你的当前代码中
+          git merge edge-server-branch --allow-unrelated-histories -m "Merge API Server support"
+
+      - name: Co-existence & Translation (sed scripts)
+        run: |
+          # 1. 修改 Application ID 以实现与原版共存
+          # 骁龙 8 Elite 设备建议使用不同的包名以区分性能测试
+          sed -i 's/applicationId "com.google.ai.edge.gallery"/applicationId "com.google.ai.edge.gallery.api"/g' Android/app/build.gradle.kts
+
+          # 2. 自动化汉化显示名称
+          # 修改桌面 App 名称
+          sed -i 's/>Google AI Edge Gallery</>AI Edge API版</g' Android/app/src/main/res/values/strings.xml
+          # 修改核心功能名称
+          sed -i 's/>Settings</>设置</g' Android/app/src/main/res/values/strings.xml
+          sed -i 's/>Benchmark</>性能评测</g' Android/app/src/main/res/values/strings.xml
+          sed -i 's/>Gemma-4-E2B-it</>Gemma-4 (本地加速版)</g' Android/app/src/main/res/values/strings.xml
+          
+          # 3. 针对 API Server 的汉化 (PR #647 字段)
+          sed -i 's/>Edge Server</>API 服务器</g' Android/app/src/main/res/values/strings.xml
+          sed -i 's/>Server running</>服务器运行中</g' Android/app/src/main/res/values/strings.xml
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
           distribution: 'temurin'
-          java-version: '21'
-      - name: Build
-        run: ./gradlew assembleRelease
+          cache: gradle
+
+      - name: Build with Gradle
+        run: |
+          cd Android
+          chmod +x gradlew
+          # 使用 Release 编译以获得 2000+ t/s 的最高 NPU 性能
+          ./gradlew assembleRelease
+
+      - name: Sign APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: Android/app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AI-Edge-Gallery-API-Edition
+          path: Android/app/build/outputs/apk/release/*.apk
