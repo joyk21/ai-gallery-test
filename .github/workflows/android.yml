@@ -23,15 +23,14 @@ jobs:
 
       - name: Inject Chinese Resources & Fix Configs
         run: |
-          # 1. 彻底清理并重新创建资源路径，防止重复定义
+          # 1. 彻底物理删除冲突目录，确保环境洁净
           rm -rf Android/src/app/src/main/res/values-zh-rCN
           mkdir -p Android/src/app/src/main/res/values-zh-rCN/
           
-          # 2. 注入精简版汉化内容 (确保每个 name 唯一)
+          # 2. 注入汉化（去掉了可能冲突的 app_name，只翻译界面文字）
           cat <<'EOF' > Android/src/app/src/main/res/values-zh-rCN/strings.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-            <string name="app_name">谷歌 AI 边缘实验室</string>
             <string name="benchmark">性能评测</string>
             <string name="chat_textinput_placeholder">输入消息…</string>
             <string name="aichat_emptystate_title">AI 聊天</string>
@@ -46,7 +45,7 @@ jobs:
           </resources>
           EOF
 
-          # 3. 修复 Google 服务配置文件 (直接覆盖)
+          # 3. 修复 Google 服务配置文件 (使用原版包名)
           rm -f Android/src/app/google-services.json
           echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
 
@@ -61,7 +60,7 @@ jobs:
         run: |
           cd Android/src
           chmod +x gradlew
-          # 先执行 clean 彻底清除上次失败的残余资源
+          # 使用 clean 强制刷新所有资源引用
           ./gradlew clean assembleRelease --no-daemon -x test
 
       - name: Sign APK
