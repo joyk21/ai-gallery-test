@@ -23,8 +23,11 @@ jobs:
 
       - name: Inject Chinese Resources & Fix Configs
         run: |
-          # 1. 注入中文资源 (保持原始包名路径)
+          # 1. 彻底清理并重新创建资源路径，防止重复定义
+          rm -rf Android/src/app/src/main/res/values-zh-rCN
           mkdir -p Android/src/app/src/main/res/values-zh-rCN/
+          
+          # 2. 注入精简版汉化内容 (确保每个 name 唯一)
           cat <<'EOF' > Android/src/app/src/main/res/values-zh-rCN/strings.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -43,7 +46,7 @@ jobs:
           </resources>
           EOF
 
-          # 2. 修复 Google 服务配置文件 (直接覆盖，不改包名)
+          # 3. 修复 Google 服务配置文件 (直接覆盖)
           rm -f Android/src/app/google-services.json
           echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
 
@@ -58,7 +61,7 @@ jobs:
         run: |
           cd Android/src
           chmod +x gradlew
-          # 清理并构建，彻底避开重复类问题
+          # 先执行 clean 彻底清除上次失败的残余资源
           ./gradlew clean assembleRelease --no-daemon -x test
 
       - name: Sign APK
