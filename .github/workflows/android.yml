@@ -23,7 +23,7 @@ jobs:
 
       - name: Inject Chinese Resources & Fix Configs
         run: |
-          # 1. 创建并注入中文资源 (基于 PR 647 的正确路径)
+          # 1. 注入中文资源
           mkdir -p Android/src/app/src/main/res/values-zh-rCN/
           cat <<'EOF' > Android/src/app/src/main/res/values-zh-rCN/strings.xml
           <?xml version="1.0" encoding="utf-8"?>
@@ -44,14 +44,13 @@ jobs:
           EOF
 
           # 2. 彻底修复 Manifest 包名冲突
-          # 删除 AndroidManifest 中的 package 属性，避免与 Gradle 命名空间冲突
           find . -name "AndroidManifest.xml" -exec sed -i 's/package="com.google.ai.edge.gallery"//g' {} +
 
-          # 3. 修改 Gradle 中的包名以实现应用共存
+          # 3. 修改 Gradle 中的包名实现共存
           find . -name "build.gradle*" -exec sed -i 's/com.google.ai.edge.gallery/com.google.ai.edge.gallery.api/g' {} +
 
-          # 4. 关键：伪造 google-services.json 绕过缺失检查 (PR 647 必须)
-          # 必须放在 Android/src/app/ 目录下
+          # 4. 关键修复：先删除可能存在的旧文件，防止 Entry name collided 报错
+          rm -f Android/src/app/google-services.json
           echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery.api"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
 
       - name: Set up JDK 21
@@ -63,10 +62,9 @@ jobs:
 
       - name: Build and Sign APK
         run: |
-          # 进入包含 gradlew 的正确目录
           cd Android/src
           chmod +x gradlew
-          # 使用 -x test 跳过测试任务，加快构建并减少报错
+          # 使用 -x test 跳过测试，进一步减少潜在冲突
           ./gradlew assembleRelease --no-daemon -x test
 
       - name: Sign APK
