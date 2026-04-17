@@ -23,11 +23,11 @@ jobs:
 
       - name: Inject Chinese Resources
         run: |
-          # 1. 强制创建中文资源文件夹（在 reset 之后执行，确保不会被删掉）
-          mkdir -p Android/app/src/main/res/values-zh-rCN/
+          # 1. 在正确的路径下创建中文资源文件夹
+          mkdir -p Android/src/app/src/main/res/values-zh-rCN/
           
-          # 2. 写入你在截图 05:49 中准备好的完整汉化内容
-          cat <<'EOF' > Android/app/src/main/res/values-zh-rCN/strings.xml
+          # 2. 写入完整的汉化内容
+          cat <<'EOF' > Android/src/app/src/main/res/values-zh-rCN/strings.xml
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
             <string name="app_name">谷歌 AI 边缘实验室</string>
@@ -45,7 +45,7 @@ jobs:
           </resources>
           EOF
 
-          # 3. 修改包名实现共存（可选）
+          # 3. 修改包名实现共存
           find . -name "build.gradle*" -exec sed -i 's/com.google.ai.edge.gallery/com.google.ai.edge.gallery.api/g' {} +
 
       - name: Set up JDK 17
@@ -57,14 +57,15 @@ jobs:
 
       - name: Build and Sign APK
         run: |
-          cd Android
+          # 关键点：进入正确的子目录执行构建
+          cd Android/src
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --no-daemon
 
       - name: Sign APK
         uses: r0adkll/sign-android-release@v1
         with:
-          releaseDirectory: Android/app/build/outputs/apk/release
+          releaseDirectory: Android/src/app/build/outputs/apk/release
           signingKeyBase64: ${{ secrets.SIGNING_KEY }}
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -74,5 +75,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AI-Gallery-Chinese-API
-          path: Android/app/build/outputs/apk/release/*.apk
+          path: Android/src/app/build/outputs/apk/release/*.apk
 
