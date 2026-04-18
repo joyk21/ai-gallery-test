@@ -21,26 +21,12 @@ jobs:
           git fetch upstream pull/647/head:edge-server-branch
           git reset --hard edge-server-branch
 
-      - name: Global In-place Translation & Fix Configs
+      - name: Essential Config Fixes
         run: |
-          # 1. 全局扫描所有的 strings.xml 并执行原地替换
-          # 这种方式不新增文件，不改包名，直接修改所有可能的源码
-          find . -name "strings.xml" -type f -exec sed -i 's/>Benchmark</>性能评测</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>Type a message…</>输入消息…</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>AI Chat</>AI 聊天</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>Mobile Actions</>移动端操作 (Actions)</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>All</>全部</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>Add</>添加</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>Added</>已添加</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>Close</>关闭</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>Delete</>删除</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>Save</>保存</g' {} +
-          find . -name "strings.xml" -type f -exec sed -i 's/>Terms of Service</>服务条款</g' {} +
-
-          # 2. 彻底清理任何可能导致冲突的 zh-rCN 目录 (防止之前的残余)
+          # 1. 物理清理所有可能存在的中文残余，确保资源纯净
           find . -name "values-zh-rCN" -type d -exec rm -rf {} +
-
-          # 3. 修复 Google 服务配置文件
+          
+          # 2. 修复 Google 服务配置文件 (这是 PR 647 编译通过的硬性门槛)
           rm -f Android/src/app/google-services.json
           echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
 
@@ -49,14 +35,12 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          # 暂时关闭缓存，确保使用最干净的环境
-          # cache: gradle
 
       - name: Build and Sign APK
         run: |
           cd Android/src
           chmod +x gradlew
-          # 使用 clean 强制重构所有资源索引
+          # 使用 clean 彻底刷新
           ./gradlew clean assembleRelease --no-daemon -x test
 
       - name: Sign APK
