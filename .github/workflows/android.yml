@@ -21,26 +21,26 @@ jobs:
           git fetch upstream pull/647/head:edge-server-branch
           git reset --hard edge-server-branch
 
-      - name: In-place Translation & Fix Configs
+      - name: Global In-place Translation & Fix Configs
         run: |
-          # 定义目标文件路径 (PR 647 的原始英文路径)
-          TARGET_FILE="Android/src/app/src/main/res/values/strings.xml"
-          
-          # 1. 使用 sed 直接修改原文件内容 (这样绝对不会有 Duplicate 冲突)
-          # 我们把原本的英文标签替换为中文
-          sed -i 's/>Benchmark</>性能评测</g' $TARGET_FILE
-          sed -i 's/>Type a message…</>输入消息…</g' $TARGET_FILE
-          sed -i 's/>AI Chat</>AI 聊天</g' $TARGET_FILE
-          sed -i 's/>Mobile Actions</>移动端操作 (Actions)</string>/g' $TARGET_FILE
-          sed -i 's/>All</>全部</g' $TARGET_FILE
-          sed -i 's/>Add</>添加</g' $TARGET_FILE
-          sed -i 's/>Added</>已添加</g' $TARGET_FILE
-          sed -i 's/>Close</>关闭</g' $TARGET_FILE
-          sed -i 's/>Delete</>删除</g' $TARGET_FILE
-          sed -i 's/>Save</>保存</g' $TARGET_FILE
-          sed -i 's/>Terms of Service</>服务条款</g' $TARGET_FILE
+          # 1. 全局扫描所有的 strings.xml 并执行原地替换
+          # 这种方式不新增文件，不改包名，直接修改所有可能的源码
+          find . -name "strings.xml" -type f -exec sed -i 's/>Benchmark</>性能评测</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>Type a message…</>输入消息…</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>AI Chat</>AI 聊天</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>Mobile Actions</>移动端操作 (Actions)</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>All</>全部</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>Add</>添加</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>Added</>已添加</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>Close</>关闭</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>Delete</>删除</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>Save</>保存</g' {} +
+          find . -name "strings.xml" -type f -exec sed -i 's/>Terms of Service</>服务条款</g' {} +
 
-          # 2. 修复 Google 服务配置文件 (使用原版包名，防止类重复)
+          # 2. 彻底清理任何可能导致冲突的 zh-rCN 目录 (防止之前的残余)
+          find . -name "values-zh-rCN" -type d -exec rm -rf {} +
+
+          # 3. 修复 Google 服务配置文件
           rm -f Android/src/app/google-services.json
           echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
 
@@ -49,13 +49,14 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
+          # 暂时关闭缓存，确保使用最干净的环境
+          # cache: gradle
 
       - name: Build and Sign APK
         run: |
           cd Android/src
           chmod +x gradlew
-          # 使用 clean 并跳过测试
+          # 使用 clean 强制重构所有资源索引
           ./gradlew clean assembleRelease --no-daemon -x test
 
       - name: Sign APK
