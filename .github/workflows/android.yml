@@ -21,31 +21,26 @@ jobs:
           git fetch upstream pull/647/head:edge-server-branch
           git reset --hard edge-server-branch
 
-      - name: Inject Chinese Resources & Fix Configs
+      - name: In-place Translation & Fix Configs
         run: |
-          # 1. 物理清理资源路径
-          rm -rf Android/src/app/src/main/res/values-zh-rCN
-          mkdir -p Android/src/app/src/main/res/values-zh-rCN/
+          # 定义目标文件路径 (PR 647 的原始英文路径)
+          TARGET_FILE="Android/src/app/src/main/res/values/strings.xml"
           
-          # 2. 注入带强制覆盖属性的汉化内容 (关键：加入 tools:override)
-          cat <<'EOF' > Android/src/app/src/main/res/values-zh-rCN/strings.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources xmlns:tools="http://schemas.android.com/tools">
-            <string name="benchmark" tools:override="true">性能评测</string>
-            <string name="chat_textinput_placeholder" tools:override="true">输入消息…</string>
-            <string name="aichat_emptystate_title" tools:override="true">AI 聊天</string>
-            <string name="mobile_actions_title" tools:override="true">移动端操作 (Actions)</string>
-            <string name="all" tools:override="true">全部</string>
-            <string name="add" tools:override="true">添加</string>
-            <string name="added" tools:override="true">已添加</string>
-            <string name="close" tools:override="true">关闭</string>
-            <string name="delete" tools:override="true">删除</string>
-            <string name="save" tools:override="true">保存</string>
-            <string name="settings_dialog_tos_title" tools:override="true">服务条款</string>
-          </resources>
-          EOF
+          # 1. 使用 sed 直接修改原文件内容 (这样绝对不会有 Duplicate 冲突)
+          # 我们把原本的英文标签替换为中文
+          sed -i 's/>Benchmark</>性能评测</g' $TARGET_FILE
+          sed -i 's/>Type a message…</>输入消息…</g' $TARGET_FILE
+          sed -i 's/>AI Chat</>AI 聊天</g' $TARGET_FILE
+          sed -i 's/>Mobile Actions</>移动端操作 (Actions)</string>/g' $TARGET_FILE
+          sed -i 's/>All</>全部</g' $TARGET_FILE
+          sed -i 's/>Add</>添加</g' $TARGET_FILE
+          sed -i 's/>Added</>已添加</g' $TARGET_FILE
+          sed -i 's/>Close</>关闭</g' $TARGET_FILE
+          sed -i 's/>Delete</>删除</g' $TARGET_FILE
+          sed -i 's/>Save</>保存</g' $TARGET_FILE
+          sed -i 's/>Terms of Service</>服务条款</g' $TARGET_FILE
 
-          # 3. 彻底修复 Google 服务配置文件 (直接覆盖，不改包名以确保类兼容)
+          # 2. 修复 Google 服务配置文件 (使用原版包名，防止类重复)
           rm -f Android/src/app/google-services.json
           echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
 
@@ -60,7 +55,7 @@ jobs:
         run: |
           cd Android/src
           chmod +x gradlew
-          # 使用 clean 任务确保不使用任何旧的、错误的资源索引
+          # 使用 clean 并跳过测试
           ./gradlew clean assembleRelease --no-daemon -x test
 
       - name: Sign APK
