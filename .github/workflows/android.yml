@@ -23,29 +23,29 @@ jobs:
 
       - name: Inject Chinese Resources & Fix Configs
         run: |
-          # 1. 彻底物理删除冲突目录，确保环境洁净
+          # 1. 物理清理资源路径
           rm -rf Android/src/app/src/main/res/values-zh-rCN
           mkdir -p Android/src/app/src/main/res/values-zh-rCN/
           
-          # 2. 注入汉化（去掉了可能冲突的 app_name，只翻译界面文字）
+          # 2. 注入带强制覆盖属性的汉化内容 (关键：加入 tools:override)
           cat <<'EOF' > Android/src/app/src/main/res/values-zh-rCN/strings.xml
           <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-            <string name="benchmark">性能评测</string>
-            <string name="chat_textinput_placeholder">输入消息…</string>
-            <string name="aichat_emptystate_title">AI 聊天</string>
-            <string name="mobile_actions_title">移动端操作 (Actions)</string>
-            <string name="all">全部</string>
-            <string name="add">添加</string>
-            <string name="added">已添加</string>
-            <string name="close">关闭</string>
-            <string name="delete">删除</string>
-            <string name="save">保存</string>
-            <string name="settings_dialog_tos_title">服务条款</string>
+          <resources xmlns:tools="http://schemas.android.com/tools">
+            <string name="benchmark" tools:override="true">性能评测</string>
+            <string name="chat_textinput_placeholder" tools:override="true">输入消息…</string>
+            <string name="aichat_emptystate_title" tools:override="true">AI 聊天</string>
+            <string name="mobile_actions_title" tools:override="true">移动端操作 (Actions)</string>
+            <string name="all" tools:override="true">全部</string>
+            <string name="add" tools:override="true">添加</string>
+            <string name="added" tools:override="true">已添加</string>
+            <string name="close" tools:override="true">关闭</string>
+            <string name="delete" tools:override="true">删除</string>
+            <string name="save" tools:override="true">保存</string>
+            <string name="settings_dialog_tos_title" tools:override="true">服务条款</string>
           </resources>
           EOF
 
-          # 3. 修复 Google 服务配置文件 (使用原版包名)
+          # 3. 彻底修复 Google 服务配置文件 (直接覆盖，不改包名以确保类兼容)
           rm -f Android/src/app/google-services.json
           echo '{"project_info":{"project_number":"123","project_id":"fake-id"},"client":[{"client_info":{"mobilesdk_app_id":"1:123:android:abc","android_client_info":{"package_name":"com.google.ai.edge.gallery"}},"api_key":[{"current_key":"fake-key"}],"services":{}}],"configuration_version":"3"}' > Android/src/app/google-services.json
 
@@ -60,7 +60,7 @@ jobs:
         run: |
           cd Android/src
           chmod +x gradlew
-          # 使用 clean 强制刷新所有资源引用
+          # 使用 clean 任务确保不使用任何旧的、错误的资源索引
           ./gradlew clean assembleRelease --no-daemon -x test
 
       - name: Sign APK
